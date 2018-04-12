@@ -8,7 +8,7 @@ How To Clear - Mixing content and creating updates
 * Version numbering
 * Format version numbering
 * Working with the upstream Clear Linux OS
-* Creating, modifying and modifying bundles
+* Creating and modifying bundles
 * Creating the update content
 * Creating an update
 
@@ -16,8 +16,8 @@ How To Clear - Mixing content and creating updates
 
 The `swupd` software delivery mechanism treats everything as an update. 
 It does this by querying metadata from an update server and calculating 
-what it needs to do and which content to use. The format of this data
-and metadata is very simple, and easy to understand and reproduce, but
+what it needs to do and with which content. The format of this data and
+metadata is very simple, and easy to understand and reproduce, but
 `swupd` needs a lot of it.
 
 As the update content describes every file in the OS, it is a large 
@@ -27,9 +27,9 @@ designed to do all the hard work on the server side, so that clients
 only need to work on small subsets of the data to perform the needed 
 operations to update or install components.
 
-`swupd` uses separate files for content and for metadata. Content often
-does not change between versions. To save space the server only stores
-one copy of each file in the version that it was last updated. This content is also compressed on the server,
+`swupd` uses separate files for content and for metadata. The content 
+is often shared between versions and these duplicates are not stored on 
+the server or the client. The content is also compressed on the server, 
 and each piece of content is identified by a hash value that is unique 
 for both the content of the data, and the properties of the inode on 
 the file system. In this way, if a file changes permissions, xattr tags 
@@ -38,8 +38,8 @@ to a new content unit.
 
 The metadata is similarly reused between different versions of the OS. 
 This means that if a bundle doesn't change between two versions, the 
-`swupd` client will reuse the older version. In the metadata the latest 
-version that a manifest metadata file is recorded. This allows clients 
+`swupd` client will reuse the older version. In the metadata, the latest 
+version that a manifest metadata file has is recorded. This allows clients 
 to reconstruct a full new view of the work that needs to be done while 
 maximizing reuse of the already known metadata.
 
@@ -47,7 +47,7 @@ maximizing reuse of the already known metadata.
 
 The metadata that `swupd` uses is stored in Manifests. These manifest 
 files come in two different levels. Each bundle is maintained in its 
-own Manifest file, and there is one Manifest-of-Manifests file that
+own Manifest file, and there is one Mother-of-Manifests file that 
 contains metadata on all the Manifests that exist for each bundle.
 
 Here is how a Manifest file looks:
@@ -73,16 +73,13 @@ At the top of the manifest is some generic metadata that various cli
 commands use to make e.g. searching produce better output. The `format 
 version` sits right at the top and describes the epoch, or generation 
 of the metadata format. While the format itself is largely stable, it 
-will be changed any time a breaking change is introduced to the metadata
-format. Because this change requires a corresponding client update a
-format boundary will assure clients update to a certain version to get
-the new updater. In this way it can be used as a milepost marker. The `version`
+can also be changed to assure clients update to a certain version 
+at all times, it can be used as sort of a milepost marker. The `version`
 and `previous` items describe the actual Clear Linux OS version that
 this metadata is from.
 
 After the header, there follows a long list of content metadata that 
-describes the files, directories and links, their content/metadata hashes, the
-version last changed, and the various informational flags for client use.
+describes the files, directories and manipulations.
 
 From left to right, the columns designate the type of content, the hash 
 of the content, the content version that introduced the content, and 
@@ -103,7 +100,7 @@ from an earlier update, as listed in the Manifest(`21530`).
 ### Content 
 
 The content that `swupd` delivers is provided to the OS in different 
-ways to optimize the download and make it as small as possible. For the 
+ways to optimize the download size and update speed. For the 
 most common cases the server calculates the mininum needed delta 
 between the content files and creates a binary diff that is very 
 efficient. In the case the client needs a clean, and full, copy of the 
@@ -127,23 +124,15 @@ The server also creates delta packs, and zero packs. These are
 optimizations where the server speculatively combines content based on 
 the assumption that you will need many of them for certain actions. The 
 client will use them if they are available, but they are entirely 
-optional. Delta packs contain the binary deltas for changes to files
-made from the source update to the target update. For any new files or
-files with changes too large to make a binary delta worth it a full file
-is included in the delta pack itself. In this way delta packs contain
-an update from one arbitrary version to another.
+optional.
 
-These delta files are created as much as possible to provide clients with the
+Delta files are created as much as possible to provide clients with the 
 smallest download possible between two versions. These are binary 
 deltas made using the `bsdiff` software. They can provide a significant 
 reduction to the needed download size, but they only work if the client 
 has the original file already, so they are not always used. In order 
 for the client to use the delta files, the original content must also 
 be verified prior to patching.
-
-Similarly, zero packs define an update from one version to another, but
-the source version is always zero. Since the zero release contained no
-files the zero pack contains all full files present in the target version.
 
 ## Mixing
 
